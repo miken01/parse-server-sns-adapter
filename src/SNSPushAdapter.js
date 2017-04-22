@@ -14,7 +14,7 @@ const DEFAULT_REGION = "us-east-1";
 const utils = require('parse-server-push-adapter').utils;
 
 function SNSPushAdapter(pushConfig) {
-    this.validPushTypes = ['ios', 'android'];
+    this.validPushTypes = ['ios', 'android', 'ios_voip'];
     this.availablePushTypes = [];
     this.snsConfig = pushConfig.pushTypes;
     this.senderMap = {};
@@ -35,6 +35,9 @@ function SNSPushAdapter(pushConfig) {
             switch (pushType) {
                 case 'ios':
                     this.senderMap[pushType] = this.sendToAPNS.bind(this);
+                    break;
+                case 'ios_voip':
+                    this.senderMap[pushType] = this.sendToAPNSVoip.bind(this);
                     break;
                 case 'android':
                     this.senderMap[pushType] = this.sendToGCM.bind(this);
@@ -92,6 +95,44 @@ SNSPushAdapter.generateAndroidPayload = function (data, pushId, timeStamp) {
 SNSPushAdapter.prototype.sendToAPNS = function (data, devices) {
 
     var iosPushConfig = this.snsConfig['ios'];
+
+    let iosConfigs = [];
+    if (Array.isArray(iosPushConfig)) {
+        iosConfigs = iosConfigs.concat(iosPushConfig);
+    } else {
+        iosConfigs.push(iosPushConfig)
+    }
+
+    let promises = [];
+
+    for (let iosConfig of iosConfigs) {
+
+        let production = iosConfig.production || false;
+        var payload = SNSPushAdapter.generateiOSPayload(data, production);
+
+        var deviceSends = [];
+        for (let device of devices) {
+
+            // Follow the same logic as APNS service.  If no appIdentifier, send it!
+            if (!device.appIdentifier || device.appIdentifier === '') {
+                deviceSends.push(device);
+            }
+
+            else if (device.appIdentifier === iosConfig.bundleId) {
+                deviceSends.push(device);
+            }
+        }
+        if (deviceSends.length > 0) {
+            promises.push(this.sendToSNS(payload, deviceSends, iosConfig.ARN));
+        }
+    }
+
+    return promises;
+}
+
+SNSPushAdapter.prototype.sendToAPNSVoip = function (data, devices) {
+
+    var iosPushConfig = this.snsConfig['ios_voip'];
 
     let iosConfigs = [];
     if (Array.isArray(iosPushConfig)) {
