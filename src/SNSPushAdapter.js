@@ -64,12 +64,24 @@ SNSPushAdapter.classifyInstallations = function (installations, validTypes) {
 }
 
 SNSPushAdapter.generateiOSPayload = function (data, production) {
+    
     var prefix = "";
 
     if (production) {
-        prefix = "APNS";
+        
+        if (data.data.isVoip === true) {
+            prefix = "APNS_VOIP"
+        } else {
+            prefix = "APNS"
+        }
+
     } else {
-        prefix = "APNS_SANDBOX"
+
+        if (data.data.isVoip === true) {
+            prefix = "APNS_VOIP_SANDBOX"
+        } else {
+            prefix = "APNS_SANDBOX"
+        }
     }
 
     var notification = APNS.generateNotification(data.data, data.expirationTime);
@@ -94,11 +106,14 @@ SNSPushAdapter.prototype.sendToAPNS = function (data, devices) {
 
     var iosPushConfig = null;
 
-    if (data.isVoip === true) {
+    if (data.data.isVoip === true) {
         iosPushConfig = this.snsConfig['ios_voip'];
     } else {
         iosPushConfig = this.snsConfig['ios'];        
     }
+
+    console.log("iosPushConfig: " + JSON.stringify(iosPushConfig));
+    console.log("data: " + JSON.stringify(data));
 
     let iosConfigs = [];
     if (Array.isArray(iosPushConfig)) {
@@ -116,6 +131,8 @@ SNSPushAdapter.prototype.sendToAPNS = function (data, devices) {
 
         var deviceSends = [];
         for (let device of devices) {
+
+            console.log("Device: " + JSON.stringify(devcie));
 
             // Follow the same logic as APNS service.  If no appIdentifier, send it!
             if (!device.appIdentifier || device.appIdentifier === '') {
