@@ -132,7 +132,13 @@ SNSPushAdapter.prototype.sendToAPNS = function (data, devices) {
         var deviceSends = [];
         for (let device of devices) {
 
-            console.log("Device: " + JSON.stringify(devcie));
+            console.log("Device: " + JSON.stringify(device));
+
+            if (data.data.isVoip === true && data.data.voipToken) {
+                console.log("Set VoIP Token: " + JSON.stringify(data.data.voipToken));
+                device.deviceToken = data.data.voipToken;
+                console.log("Updated Device: " + JSON.stringify(device));
+            }
 
             // Follow the same logic as APNS service.  If no appIdentifier, send it!
             if (!device.appIdentifier || device.appIdentifier === '') {
